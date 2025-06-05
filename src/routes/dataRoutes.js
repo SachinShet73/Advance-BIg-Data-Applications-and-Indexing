@@ -1,16 +1,18 @@
 const express = require('express');
 const DataController = require('../controllers/dataController');
-const { validateData } = require('../middleware/validation');
+const { validateInsurancePlan, validateDateFormat } = require('../middleware/validation');
 
 const router = express.Router();
 const dataController = new DataController();
 
-router.post('/data', validateData, dataController.createData);
+router.post('/plans', validateDateFormat, validateInsurancePlan, dataController.createPlan);
 
-router.get('/data/:id', dataController.getData);
+router.get('/plans/:planId', dataController.getPlan);
 
-router.get('/data', dataController.listData);
+router.get('/plans', dataController.listPlans);
 
-router.delete('/data/:id', dataController.deleteData);
+router.delete('/plans/:planId', dataController.deletePlan);
+
+router.get('/plans/:planId/cost-calculation', dataController.calculatePatientCost);
 
 module.exports = router;

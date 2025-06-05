@@ -1,17 +1,35 @@
-# Structured Data REST API
+# Healthcare Insurance Plan Management API
 
 [![Node.js](https://img.shields.io/badge/Node.js-16+-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.18+-blue.svg)](https://expressjs.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Healthcare](https://img.shields.io/badge/Healthcare-Insurance-blue.svg)](https://healthcare.gov/)
 
-A production-ready REST API for handling structured JSON data with comprehensive validation, conditional reads, and key/value storage. Built with Node.js, Express, and JSON Schema validation.
+A production-ready REST API for managing healthcare insurance plans with complex cost-sharing structures, service-specific overrides, and real-time patient cost calculations. Built with Node.js, Express, and comprehensive JSON Schema validation.
+
+## 🏥 Business Use Case
+
+**Healthcare Insurance Plan Configuration and Cost Calculation**
+
+Insurance companies need to manage complex healthcare plans with different cost-sharing structures for various medical services. Each plan has overall deductibles/copays plus service-specific cost sharing rules that override defaults.
+
+### Key Business Problems Solved:
+- **Plan Configuration Management**: Centralized storage and validation of insurance plan structures
+- **Service-Specific Cost Overrides**: Handle different copays/deductibles for specific medical services
+- **Real-Time Cost Calculation**: Calculate patient responsibility before service delivery
+- **Organization Consistency**: Ensure all plan components belong to the same insurance organization
+- **Compliance & Auditing**: Track plan changes with versioning and timestamps
 
 ## 🚀 Features
 
-- ✅ **Full CRUD Operations**: POST, GET, DELETE with proper REST semantics
-- ✅ **JSON Schema Validation**: Real-time payload validation with detailed error reporting
+- ✅ **Insurance Plan CRUD**: Create, read, delete healthcare insurance plans
+- ✅ **Complex Schema Validation**: Validates nested plan structures with cost-sharing rules
+- ✅ **Service Override Logic**: Service-specific cost sharing overrides plan defaults
+- ✅ **Patient Cost Calculation**: Real-time calculation of patient financial responsibility
+- ✅ **Organization Consistency**: Validates all nested objects belong to same organization
+- ✅ **Object ID Uniqueness**: Ensures unique identifiers across plan components
 - ✅ **Conditional Reads**: ETags support for efficient caching and bandwidth optimization
-- ✅ **Key/Value Storage**: High-performance in-memory storage with metadata tracking
+- ✅ **Filtered Queries**: Search plans by organization and plan type
 - ✅ **API Versioning**: Future-proof versioned endpoints (`/api/v1`)
 - ✅ **Security Headers**: Helmet.js integration for security best practices
 - ✅ **CORS Support**: Cross-origin resource sharing enabled
@@ -54,11 +72,13 @@ The API will be available at `http://localhost:3000`
 
 | Method | Endpoint | Description | Status Codes |
 |--------|----------|-------------|--------------|
-| `POST` | `/data` | Create new data record | `201`, `400`, `409`, `500` |
-| `GET` | `/data/{id}` | Retrieve specific record | `200`, `304`, `404`, `500` |
-| `GET` | `/data` | List all records | `200`, `500` |
-| `DELETE` | `/data/{id}` | Delete specific record | `204`, `404`, `500` |
+| `POST` | `/plans` | Create new insurance plan | `201`, `400`, `409`, `500` |
+| `GET` | `/plans/{planId}` | Retrieve specific plan | `200`, `304`, `404`, `500` |
+| `GET` | `/plans` | List all plans (supports filters) | `200`, `500` |
+| `DELETE` | `/plans/{planId}` | Delete insurance plan | `204`, `404`, `500` |
+| `GET` | `/plans/{planId}/cost-calculation` | Calculate patient cost | `200`, `400`, `404`, `500` |
 | `GET` | `/health` | Health check endpoint | `200` |
+| `GET` | `/api/v1` | API documentation endpoint | `200` |
 
 ### 🔧 Request/Response Headers
 
@@ -83,165 +103,290 @@ The API will be available at `http://localhost:3000`
 | `409` | Conflict | Resource already exists |
 | `500` | Server Error | Internal server error |
 
-## 🗂️ Data Model
+## 🗂️ Insurance Plan Data Model
 
-The API accepts structured JSON data conforming to this schema:
+The API manages complex healthcare insurance plans with nested cost-sharing structures:
 
-### Request Schema (POST /data)
+### Core Insurance Plan Schema (POST /plans)
 
 ```json
 {
-  "id": "user-123",                    // Required: 1-100 chars, alphanumeric + _-
-  "name": "John Doe",                  // Required: 1-255 chars
-  "type": "user",                      // Required: user|product|order|category
-  "attributes": {                      // Optional: dynamic properties
-    "email": "john@example.com",
-    "age": 30,
-    "preferences": ["music", "sports"]
-  }
+  "objectId": "plan-12345",                   // Auto-generated if not provided
+  "objectType": "plan",                       // Required: must be "plan"
+  "planType": "inNetwork",                    // Required: inNetwork|outOfNetwork|emergency
+  "_org": "healthcorp.com",                   // Required: organization domain
+  "creationDate": "06-05-2025",              // Required: MM-DD-YYYY format
+  "planCostShares": {                         // Required: plan-level cost sharing
+    "objectId": "cost-67890",                 // Auto-generated if not provided
+    "objectType": "membercostshare",          // Required
+    "deductible": 2000,                       // Required: annual deductible
+    "copay": 25,                              // Required: default copay
+    "_org": "healthcorp.com"                  // Required: must match plan._org
+  },
+  "linkedPlanServices": [                     // Optional: service-specific overrides
+    {
+      "objectId": "planservice-111",          // Auto-generated if not provided
+      "objectType": "planservice",            // Required
+      "_org": "healthcorp.com",               // Required: must match plan._org
+      "linkedService": {
+        "objectId": "service-222",            // Auto-generated if not provided
+        "objectType": "service",              // Required
+        "name": "Annual Physical",            // Required: service name
+        "_org": "healthcorp.com"              // Required: must match plan._org
+      },
+      "planserviceCostShares": {
+        "objectId": "cost-333",               // Auto-generated if not provided
+        "objectType": "membercostshare",      // Required
+        "deductible": 0,                      // Service-specific deductible
+        "copay": 0,                           // Service-specific copay (overrides plan default)
+        "_org": "healthcorp.com"              // Required: must match plan._org
+      }
+    }
+  ]
 }
 ```
 
-### Response Schema (GET /data/{id})
+### Complete Response Schema (GET /plans/{planId})
 
 ```json
 {
-  "id": "user-123",
-  "name": "John Doe",
-  "type": "user",
-  "attributes": {
-    "email": "john@example.com",
-    "age": 30,
-    "preferences": ["music", "sports"]
+  "objectId": "plan-12345",
+  "objectType": "plan",
+  "planType": "inNetwork",
+  "_org": "healthcorp.com",
+  "creationDate": "06-05-2025",
+  "planCostShares": {
+    "objectId": "cost-67890",
+    "objectType": "membercostshare",
+    "deductible": 2000,
+    "copay": 25,
+    "_org": "healthcorp.com"
   },
-  "metadata": {                        // Auto-generated by server
-    "createdAt": "2023-12-01T10:00:00.000Z",
-    "updatedAt": "2023-12-01T10:00:00.000Z",
+  "linkedPlanServices": [
+    {
+      "objectId": "planservice-111",
+      "objectType": "planservice",
+      "_org": "healthcorp.com",
+      "linkedService": {
+        "objectId": "service-222",
+        "objectType": "service",
+        "name": "Annual Physical",
+        "_org": "healthcorp.com"
+      },
+      "planserviceCostShares": {
+        "objectId": "cost-333",
+        "objectType": "membercostshare",
+        "deductible": 0,
+        "copay": 0,
+        "_org": "healthcorp.com"
+      }
+    }
+  ],
+  "metadata": {                               // Auto-generated by server
+    "createdAt": "2025-06-05T17:00:00.000Z",
+    "updatedAt": "2025-06-05T17:00:00.000Z",
     "version": 1
   }
 }
 ```
 
-### Field Validation Rules
+### Business Logic Rules
 
-| Field | Type | Required | Constraints |
-|-------|------|----------|-------------|
-| `id` | string | ✅ | 1-100 chars, alphanumeric + underscore + hyphen |
-| `name` | string | ✅ | 1-255 characters |
-| `type` | string | ✅ | Must be one of: `user`, `product`, `order`, `category` |
-| `attributes` | object | ❌ | Flexible object with any valid JSON properties |
-| `metadata` | object | ❌ | Auto-generated, contains timestamps and version |
+| Rule | Description | Implementation |
+|------|-------------|----------------|
+| **Organization Consistency** | All nested `_org` values must match the plan's `_org` | Validated in middleware |
+| **Object ID Uniqueness** | All `objectId` values must be unique within the plan | Validated in middleware |
+| **Service Cost Override** | Service-level cost sharing overrides plan defaults | Implemented in cost calculation |
+| **Plan Type Validation** | Plan type must be valid enum value | JSON schema validation |
+| **Date Format** | Creation date must be MM-DD-YYYY | Custom validation middleware |
+
+### Cost Calculation Hierarchy
+
+1. **Check for Service Override**: Look for service-specific cost sharing
+2. **Apply Service Rules**: If found, use service `deductible` and `copay`
+3. **Fall Back to Plan**: If no override, use plan-level `deductible` and `copay`
+4. **Calculate Patient Cost**: Apply deductible first, then copay
 
 ## 💡 Usage Examples
 
-### 1. Create a New Record
+### 1. Create a New Insurance Plan
 
 **Request:**
 ```bash
-curl -X POST http://localhost:3000/api/v1/data \
+curl -X POST http://localhost:3000/api/v1/plans \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "user-123",
-    "name": "John Doe",
-    "type": "user",
-    "attributes": {
-      "email": "john@example.com",
-      "age": 30,
-      "department": "Engineering"
-    }
+    "objectType": "plan",
+    "planType": "inNetwork",
+    "_org": "healthcorp.com",
+    "creationDate": "06-05-2025",
+    "planCostShares": {
+      "objectType": "membercostshare",
+      "deductible": 1500,
+      "copay": 25,
+      "_org": "healthcorp.com"
+    },
+    "linkedPlanServices": [
+      {
+        "objectType": "planservice",
+        "_org": "healthcorp.com",
+        "linkedService": {
+          "objectType": "service",
+          "name": "Annual Physical",
+          "_org": "healthcorp.com"
+        },
+        "planserviceCostShares": {
+          "objectType": "membercostshare",
+          "deductible": 0,
+          "copay": 0,
+          "_org": "healthcorp.com"
+        }
+      }
+    ]
   }'
 ```
 
 **Response (201 Created):**
 ```json
 {
-  "message": "Resource created successfully",
-  "id": "user-123",
+  "message": "Insurance plan created successfully",
+  "objectId": "lts123abc456",
+  "planType": "inNetwork",
   "version": 1,
-  "timestamp": "2023-12-01T10:00:00.000Z"
+  "timestamp": "2025-06-05T17:00:00.000Z"
 }
 ```
 
 **Headers:**
 ```
 ETag: "a1b2c3d4"
-Location: /api/v1/data/user-123
+Location: /api/v1/plans/lts123abc456
 ```
 
-### 2. Retrieve a Record
+### 2. Retrieve an Insurance Plan
 
 **Request:**
 ```bash
-curl -X GET http://localhost:3000/api/v1/data/user-123
+curl -X GET http://localhost:3000/api/v1/plans/lts123abc456
 ```
 
 **Response (200 OK):**
 ```json
 {
-  "id": "user-123",
-  "name": "John Doe",
-  "type": "user",
-  "attributes": {
-    "email": "john@example.com",
-    "age": 30,
-    "department": "Engineering"
+  "objectId": "lts123abc456",
+  "objectType": "plan",
+  "planType": "inNetwork",
+  "_org": "healthcorp.com",
+  "creationDate": "06-05-2025",
+  "planCostShares": {
+    "objectId": "lts123def789",
+    "objectType": "membercostshare",
+    "deductible": 1500,
+    "copay": 25,
+    "_org": "healthcorp.com"
   },
+  "linkedPlanServices": [
+    {
+      "objectId": "lts123ghi012",
+      "objectType": "planservice",
+      "_org": "healthcorp.com",
+      "linkedService": {
+        "objectId": "lts123jkl345",
+        "objectType": "service",
+        "name": "Annual Physical",
+        "_org": "healthcorp.com"
+      },
+      "planserviceCostShares": {
+        "objectId": "lts123mno678",
+        "objectType": "membercostshare",
+        "deductible": 0,
+        "copay": 0,
+        "_org": "healthcorp.com"
+      }
+    }
+  ],
   "metadata": {
-    "createdAt": "2023-12-01T10:00:00.000Z",
-    "updatedAt": "2023-12-01T10:00:00.000Z",
+    "createdAt": "2025-06-05T17:00:00.000Z",
+    "updatedAt": "2025-06-05T17:00:00.000Z",
     "version": 1
   }
 }
 ```
 
-### 3. Conditional Read (Caching)
+### 3. Calculate Patient Cost for a Service
 
 **Request:**
 ```bash
-curl -X GET http://localhost:3000/api/v1/data/user-123 \
-  -H "If-None-Match: \"a1b2c3d4\""
-```
-
-**Response (304 Not Modified):**
-```
-Status: 304 Not Modified
-ETag: "a1b2c3d4"
-(Empty body)
-```
-
-### 4. List All Records
-
-**Request:**
-```bash
-curl -X GET http://localhost:3000/api/v1/data
+curl -X GET "http://localhost:3000/api/v1/plans/lts123abc456/cost-calculation?serviceId=lts123jkl345&claimAmount=200"
 ```
 
 **Response (200 OK):**
 ```json
 {
-  "data": [
+  "planId": "lts123abc456",
+  "serviceId": "lts123jkl345",
+  "claimAmount": 200,
+  "applicableCostShares": {
+    "objectId": "lts123mno678",
+    "objectType": "membercostshare",
+    "deductible": 0,
+    "copay": 0,
+    "_org": "healthcorp.com"
+  },
+  "patientResponsibility": {
+    "totalPatientCost": 0,
+    "deductiblePortion": 0,
+    "copayPortion": 0,
+    "insurancePays": 200,
+    "claimAmount": 200
+  },
+  "serviceOverrideApplied": true,
+  "calculation": {
+    "deductible": 0,
+    "copay": 0,
+    "patientPays": 0
+  },
+  "timestamp": "2025-06-05T17:05:00.000Z"
+}
+```
+
+### 4. List Plans with Filters
+
+**Request:**
+```bash
+curl -X GET "http://localhost:3000/api/v1/plans?org=healthcorp.com&planType=inNetwork"
+```
+
+**Response (200 OK):**
+```json
+{
+  "plans": [
     {
-      "key": "user-123",
-      "id": "user-123",
-      "name": "John Doe",
-      "type": "user",
+      "key": "lts123abc456",
+      "objectId": "lts123abc456",
+      "planType": "inNetwork",
+      "_org": "healthcorp.com",
       "metadata": {
-        "createdAt": "2023-12-01T10:00:00.000Z",
-        "updatedAt": "2023-12-01T10:00:00.000Z",
+        "createdAt": "2025-06-05T17:00:00.000Z",
+        "updatedAt": "2025-06-05T17:00:00.000Z",
         "version": 1
       }
     }
   ],
   "count": 1,
-  "timestamp": "2023-12-01T10:05:00.000Z"
+  "filters": {
+    "org": "healthcorp.com",
+    "planType": "inNetwork"
+  },
+  "timestamp": "2025-06-05T17:05:00.000Z"
 }
 ```
 
-### 5. Delete a Record
+### 5. Delete an Insurance Plan
 
 **Request:**
 ```bash
-curl -X DELETE http://localhost:3000/api/v1/data/user-123
+curl -X DELETE http://localhost:3000/api/v1/plans/lts123abc456
 ```
 
 **Response (204 No Content):**
@@ -254,31 +399,78 @@ Status: 204 No Content
 
 **Request:**
 ```bash
-curl -X POST http://localhost:3000/api/v1/data \
+curl -X POST http://localhost:3000/api/v1/plans \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "Invalid Record",
-    "type": "invalid-type"
+    "objectType": "plan",
+    "planType": "invalidType",
+    "_org": "healthcorp.com",
+    "creationDate": "invalid-date",
+    "planCostShares": {
+      "objectType": "membercostshare",
+      "deductible": -100,
+      "_org": "different-org.com"
+    }
   }'
 ```
 
 **Response (400 Bad Request):**
 ```json
 {
-  "error": "Validation failed",
+  "error": "Insurance Plan Validation Failed",
+  "message": "The provided insurance plan data does not conform to the required schema",
   "details": [
     {
-      "field": "",
-      "message": "must have required property 'id'",
-      "value": {...}
+      "field": "/planType",
+      "message": "must be equal to one of the allowed values",
+      "value": "invalidType",
+      "allowedValues": ["inNetwork", "outOfNetwork", "emergency"]
     },
     {
-      "field": "/type",
-      "message": "must be equal to one of the allowed values",
-      "value": "invalid-type"
+      "field": "/creationDate",
+      "message": "must match pattern \"^\\\\d{2}-\\\\d{2}-\\\\d{4}$\"",
+      "value": "invalid-date"
+    },
+    {
+      "field": "/planCostShares/deductible",
+      "message": "must be >= 0",
+      "value": -100
+    },
+    {
+      "field": "/planCostShares",
+      "message": "must have required property 'copay'"
     }
   ],
-  "timestamp": "2023-12-01T10:00:00.000Z"
+  "timestamp": "2025-06-05T17:00:00.000Z"
+}
+```
+
+### 7. Organization Consistency Error
+
+**Request:**
+```bash
+curl -X POST http://localhost:3000/api/v1/plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "objectType": "plan",
+    "planType": "inNetwork",
+    "_org": "healthcorp.com",
+    "creationDate": "06-05-2025",
+    "planCostShares": {
+      "objectType": "membercostshare",
+      "deductible": 1500,
+      "copay": 25,
+      "_org": "different-org.com"
+    }
+  }'
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "error": "Organization Consistency Validation Failed",
+  "message": "All nested objects must have the same _org value as the parent plan",
+  "timestamp": "2025-06-05T17:00:00.000Z"
 }
 ```
 

@@ -1,32 +1,141 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "data-schema.json",
-  "title": "Structured Data Schema",
-  "description": "JSON Schema for validating structured data in the REST API",
+  "$id": "insurance-plan-schema.json",
+  "title": "Healthcare Insurance Plan Schema",
+  "description": "JSON Schema for validating healthcare insurance plan data",
   "type": "object",
   "properties": {
-    "id": {
+    "objectId": {
       "type": "string",
-      "description": "Unique identifier for the data record",
-      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Unique identifier for the insurance plan",
+      "pattern": "^[a-zA-Z0-9-]+$",
       "minLength": 1,
       "maxLength": 100
     },
-    "name": {
+    "objectType": {
       "type": "string",
-      "description": "Name of the data record",
-      "minLength": 1,
-      "maxLength": 255
+      "enum": ["plan"],
+      "description": "Type of object - must be 'plan'"
     },
-    "type": {
+    "planType": {
       "type": "string",
-      "enum": ["user", "product", "order", "category"],
-      "description": "Type of the data record"
+      "enum": ["inNetwork", "outOfNetwork", "emergency"],
+      "description": "Type of insurance plan"
     },
-    "attributes": {
+    "_org": {
+      "type": "string",
+      "description": "Organization domain",
+      "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    },
+    "creationDate": {
+      "type": "string",
+      "description": "Plan creation date in MM-DD-YYYY format",
+      "pattern": "^\\d{2}-\\d{2}-\\d{4}$"
+    },
+    "planCostShares": {
       "type": "object",
-      "description": "Dynamic attributes for the data record",
-      "additionalProperties": true
+      "description": "Plan-level cost sharing configuration",
+      "properties": {
+        "objectId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-]+$"
+        },
+        "objectType": {
+          "type": "string",
+          "enum": ["membercostshare"]
+        },
+        "deductible": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Annual deductible amount"
+        },
+        "copay": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Copay amount"
+        },
+        "_org": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+        }
+      },
+      "required": ["objectId", "objectType", "deductible", "copay", "_org"],
+      "additionalProperties": false
+    },
+    "linkedPlanServices": {
+      "type": "array",
+      "description": "Service-specific cost sharing overrides",
+      "items": {
+        "type": "object",
+        "properties": {
+          "objectId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-]+$"
+          },
+          "objectType": {
+            "type": "string",
+            "enum": ["planservice"]
+          },
+          "_org": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+          },
+          "linkedService": {
+            "type": "object",
+            "properties": {
+              "objectId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-]+$"
+              },
+              "objectType": {
+                "type": "string",
+                "enum": ["service"]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 255,
+                "description": "Service name"
+              },
+              "_org": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+              }
+            },
+            "required": ["objectId", "objectType", "name", "_org"],
+            "additionalProperties": false
+          },
+          "planserviceCostShares": {
+            "type": "object",
+            "properties": {
+              "objectId": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-]+$"
+              },
+              "objectType": {
+                "type": "string",
+                "enum": ["membercostshare"]
+              },
+              "deductible": {
+                "type": "number",
+                "minimum": 0
+              },
+              "copay": {
+                "type": "number",
+                "minimum": 0
+              },
+              "_org": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+              }
+            },
+            "required": ["objectId", "objectType", "deductible", "copay", "_org"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["objectId", "objectType", "_org", "linkedService", "planserviceCostShares"],
+        "additionalProperties": false
+      }
     },
     "metadata": {
       "type": "object",
@@ -47,6 +156,6 @@
       "additionalProperties": false
     }
   },
-  "required": ["id", "name", "type"],
+  "required": ["objectId", "objectType", "planType", "_org", "creationDate", "planCostShares"],
   "additionalProperties": false
 }
